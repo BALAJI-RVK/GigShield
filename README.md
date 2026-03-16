@@ -292,6 +292,7 @@ GigShield operates as a **B2B2C embedded insurtech** — the AI parametric engin
 *Submitted for Guidewire DEVTrails 2026 | Phase 1 | March 2026*
 
 ## Setup Fir Phase 1
+## This is a basic file structure and these are commands to check out those things
 
 1. Copy `.env.example` to `.env` and fill the variables.
 2. Install dependencies for the backend and dashboard:
