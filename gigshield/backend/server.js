@@ -46,17 +46,20 @@ app.use(express.json());
 
 // Enable CORS for all routes so the React dashboard (which
 // runs on a different port) can call this API without
-// being blocked by the browser.
+// Import our custom API routes (Layer 1 Ingestion)
+const apiRoutes = require('./routes/api');
+
+// Enable CORS for all routes...
 app.use(cors());
+
+// Mount the API routes
+app.use('/api', apiRoutes);
 
 // ─────────────────────────────────────────────────────────
 //  HEALTH CHECK ROUTE
 //  GET /  →  returns a JSON status message.
-//  This is the first route we test to confirm the server
-//  is alive and responding correctly.
 // ─────────────────────────────────────────────────────────
 app.get('/', (req, res) => {
-  // Send a JSON response back to whoever called this URL.
   res.json({ status: 'GigShield engine running' });
 });
 
