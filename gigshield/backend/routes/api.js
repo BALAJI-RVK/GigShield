@@ -372,4 +372,109 @@ router.get('/premium-preview', (req, res) => {
   res.json({ success: true, estimatedPremium: premium, city, zone });
 });
 
+// ─────────────────────────────────────────────────────────
+// ROUTE: Start a shift (mobile app "Start Shift" button)
+// POST /api/start-shift
+// Body: { workerHash }
+// Marks worker active + broadcasts worker_online event
+// ─────────────────────────────────────────────────────────
+router.post('/start-shift', async (req, res) => {
+  const { workerHash } = req.body;
+  if (!workerHash) {
+    return res.status(400).json({ success: false, error: 'workerHash is required' });
+  }
+
+  try {
+    const worker = await prisma.worker.findUnique({ where: { workerHash } });
+    if (!worker) {
+      return res.status(404).json({ success: false, error: 'Worker not found' });
+    }
+
+    // Mark as active
+    await prisma.worker.update({
+      where: { workerHash },
+      data: { isActive: true }
+    });
+
+    // Broadcast via WebSocket
+    const { broadcast } = require('../socket/socketManager');
+    broadcast('worker_online', {
+      data: {
+        workerHash: worker.workerHash,
+        city: worker.city,
+        zone: worker.zone,
+        platforms: worker.platforms,
+        message: `Worker in ${worker.city} (zone ${worker.zone}) is now online`
+      }
+    });
+
+    console.log(`[Start Shift] Worker ${worker.city}/${worker.zone} is now ONLINE`);
+
+    res.json({
+      success: true,
+      worker: {
+        id: worker.id,
+        workerHash: worker.workerHash,
+        city: worker.city,
+        zone: worker.zone,
+        isActive: true
+      }
+    });
+  } catch (err) {
+    console.error(`[Start Shift Error] ${err.message}`);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────
+// ROUTE: Get a single worker's full profile
+// GET /api/worker/:workerHash
+// Returns worker + policies + claims for the mobile app
+// ─────────────────────────────────────────────────────────
+router.get('/worker/:workerHash', async (req, res) => {
+  try {
+    const worker = await prisma.worker.findUnique({
+      where: { workerHash: req.params.workerHash },
+      include: {
+        policies: { orderBy: { createdAt: 'desc' }, take: 5 },
+        claims:   { orderBy: { createdAt: 'desc' }, take: 20 }
+      }
+    });
+
+    if (!worker) {
+      return res.status(404).json({ success: false, error: 'Worker not found' });
+    }
+
+    // Calculate premium
+    const premium = calculateWeeklyPremium(
+      worker.weeklyEarningsHistory,
+      worker.zone,
+      worker.zoneRiskScore,
+      worker.seasonalMultiplier
+    );
+
+    // Calculate earnings stats
+    const earnings = worker.weeklyEarningsHistory || [];
+    const avgWeekly = earnings.length > 0
+      ? Math.round(earnings.reduce((s, v) => s + v, 0) / earnings.length)
+      : 0;
+    const avgHourly = Math.round(avgWeekly / 42); // ~42 working hours/week
+
+    res.json({
+      success: true,
+      worker: {
+        ...worker,
+        calculatedPremium: premium,
+        avgWeeklyEarnings: avgWeekly,
+        avgHourlyEarnings: avgHourly,
+        activePolicy: worker.policies[0] || null,
+        recentClaims: worker.claims
+      }
+    });
+  } catch (err) {
+    console.error(`[API Error] /api/worker/:hash: ${err.message}`);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

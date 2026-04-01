@@ -11,8 +11,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    host: '0.0.0.0',   // Allow external access (judge's phone via WiFi hotspot)
     proxy: {
-      // Any request starting with /api is forwarded to the backend
       '/api': {
         target: 'http://localhost:4000',
         changeOrigin: true,

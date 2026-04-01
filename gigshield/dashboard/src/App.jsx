@@ -3,14 +3,23 @@ import MissionControl from './pages/MissionControl'
 import WorkersPage    from './pages/WorkersPage'
 import ClaimsPage     from './pages/ClaimsPage'
 import SimulatePage   from './pages/SimulatePage'
-import RegisterPage   from './pages/RegisterPage'   // NEW
-import PoliciesPage   from './pages/PoliciesPage'   // NEW
+import RegisterPage   from './pages/RegisterPage'
+import PoliciesPage   from './pages/PoliciesPage'
+
+// Mobile App (Zomato Partner Clone)
+import AppLayout    from './pages/app/AppLayout'
+import AppHome      from './pages/app/AppHome'
+import AppRegister  from './pages/app/AppRegister'
+import AppDashboard from './pages/app/AppDashboard'
+import AppMonitor   from './pages/app/AppMonitor'
+import AppClaims    from './pages/app/AppClaims'
+
 import './index.css'
 
 const NAV_ITEMS = [
   { to: '/',           label: 'Mission Control', icon: '🎮' },
-  { to: '/register',   label: 'Register',        icon: '📲' },  // NEW
-  { to: '/policies',   label: 'Policies',        icon: '📄' },  // NEW
+  { to: '/register',   label: 'Register',        icon: '📲' },
+  { to: '/policies',   label: 'Policies',        icon: '📄' },
   { to: '/workers',    label: 'Workers',         icon: '👷' },
   { to: '/claims',     label: 'Claims',          icon: '📋' },
   { to: '/simulate',   label: 'Simulate',        icon: '🌧️' },
@@ -19,43 +28,57 @@ const NAV_ITEMS = [
 function App() {
   return (
     <BrowserRouter>
-      <div className="app-layout">
-        <aside className="sidebar">
-          <div className="sidebar-logo">
-            <h1>GigShield</h1>
-            <p>DEVTrails 2026</p>
-          </div>
-          <nav className="sidebar-nav">
-            {NAV_ITEMS.map(item => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.to === '/'}
-                className={({ isActive }) =>
-                  isActive ? 'nav-link active' : 'nav-link'
-                }
-              >
-                <span>{item.icon}</span>
-                <span>{item.label}</span>
-              </NavLink>
-            ))}
-          </nav>
-        </aside>
+      <Routes>
 
-        <main className="main-content">
-          <Routes>
-            <Route path="/"          element={<MissionControl />} />
-            <Route path="/register"  element={<RegisterPage />}   />
-            <Route path="/policies"  element={<PoliciesPage />}   />
-            <Route path="/workers"   element={<WorkersPage />}    />
-            <Route path="/claims"    element={<ClaimsPage />}     />
-            <Route path="/simulate"  element={<SimulatePage />}   />
-          </Routes>
-        </main>
-      </div>
+        {/* ── MOBILE APP (judge's phone) ──────────── */}
+        <Route path="/app" element={<AppLayout />}>
+          <Route index           element={<AppHome />} />
+          <Route path="register" element={<AppRegister />} />
+          <Route path="dashboard" element={<AppDashboard />} />
+          <Route path="monitor"  element={<AppMonitor />} />
+          <Route path="claims"   element={<AppClaims />} />
+        </Route>
+
+        {/* ── ADMIN DASHBOARD (your laptop) ─────── */}
+        <Route path="/*" element={
+          <div className="app-layout">
+            <aside className="sidebar">
+              <div className="sidebar-logo">
+                <h1>GigShield</h1>
+                <p>DEVTrails 2026</p>
+              </div>
+              <nav className="sidebar-nav">
+                {NAV_ITEMS.map(item => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.to === '/'}
+                    className={({ isActive }) =>
+                      isActive ? 'nav-link active' : 'nav-link'
+                    }
+                  >
+                    <span>{item.icon}</span>
+                    <span>{item.label}</span>
+                  </NavLink>
+                ))}
+              </nav>
+            </aside>
+            <main className="main-content">
+              <Routes>
+                <Route path="/"          element={<MissionControl />} />
+                <Route path="/register"  element={<RegisterPage />} />
+                <Route path="/policies"  element={<PoliciesPage />} />
+                <Route path="/workers"   element={<WorkersPage />} />
+                <Route path="/claims"    element={<ClaimsPage />} />
+                <Route path="/simulate"  element={<SimulatePage />} />
+              </Routes>
+            </main>
+          </div>
+        } />
+
+      </Routes>
     </BrowserRouter>
   )
 }
 
 export default App
-
