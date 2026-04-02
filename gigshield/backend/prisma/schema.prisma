@@ -10,6 +10,7 @@ datasource db {
 model Worker {
   id                    String   @id @default(uuid())
   workerHash            String   @unique
+  name                  String   @default("Unknown Partner")
   platforms             String[]
   zone                  String
   city                  String

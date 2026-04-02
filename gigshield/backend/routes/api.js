@@ -263,13 +263,14 @@ router.post('/register', async (req, res) => {
     const worker = await prisma.worker.create({
       data: {
         workerHash,
+        name:               name?.trim() || 'Delivery Partner',
         platforms,          // e.g. ['zomato', 'swiggy']
         zone,
         city,
         weeklyEarningsHistory,
         zoneRiskScore:      zoneRisk[city] || 1.0,
         seasonalMultiplier: 1.0,
-        isActive:           false          // Becomes true on first QR scan
+        isActive:           false
       }
     });
 
@@ -303,6 +304,7 @@ router.post('/register', async (req, res) => {
       worker: {
         id:             worker.id,
         workerHash:     worker.workerHash,
+        name:           worker.name,
         city:           worker.city,
         zone:           worker.zone,
         platforms:      worker.platforms,

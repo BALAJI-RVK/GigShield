@@ -10,11 +10,15 @@ import { useState, useEffect } from 'react'
 import { io } from 'socket.io-client'
 import { useNavigate } from 'react-router-dom'
 
-// Connect to backend WebSocket — use current hostname so it works on judge's phone via WiFi
-const BACKEND = `http://${window.location.hostname}:4000`
+// Connect via Vite's WebSocket proxy (same origin = port 5173)
+// This works on BOTH localhost (laptop) and the judge's phone via WiFi.
+// Vite proxies /socket.io → localhost:4000 automatically.
+const BACKEND = `http://${window.location.hostname}:5173`
 const socket = io(BACKEND, {
-  reconnectionDelay: 2000,
-  reconnectionAttempts: 30
+  path: '/socket.io',
+  reconnectionDelay: 1000,
+  reconnectionAttempts: 20,
+  timeout: 5000
 })
 
 export default function AppMonitor() {

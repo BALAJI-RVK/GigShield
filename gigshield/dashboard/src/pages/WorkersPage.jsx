@@ -74,6 +74,7 @@ export default function WorkersPage() {
           <table>
             <thead>
               <tr>
+                <th>Name</th>
                 <th>Worker Hash</th>
                 <th>City</th>
                 <th>Zone</th>
@@ -86,9 +87,11 @@ export default function WorkersPage() {
             <tbody>
               {workers.map(worker => (
                 <tr key={worker.id}>
-                  {/* Show first 12 chars of hash only */}
-                  <td style={{ fontFamily: 'monospace', fontSize: 12 }}>
-                    {worker.workerHash.substring(0, 12)}...
+                  <td style={{ fontWeight: 600 }}>
+                    {worker.name || '—'}
+                  </td>
+                  <td style={{ fontFamily: 'monospace', fontSize: 12, color: '#64748b' }}>
+                    {worker.workerHash.substring(0, 10)}...
                   </td>
                   <td>{worker.city}</td>
                   <td>{worker.zone}</td>

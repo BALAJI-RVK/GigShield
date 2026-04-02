@@ -26,16 +26,20 @@ export default function ClaimsPage() {
   const [claims, setClaims]   = useState([])
   const [loading, setLoading] = useState(true)
 
-  // Auto-refresh claims every 10 seconds so new ones appear automatically
+  // Auto-refresh claims every 30 seconds so new ones appear automatically
   useEffect(() => {
+    let controller = new AbortController()
+
     const fetchClaims = () => {
-      axios.get('/api/claims')
+      controller.abort()                  // Cancel any in-flight request
+      controller = new AbortController()
+      axios.get('/api/claims', { signal: controller.signal })
         .then(res => { setClaims(res.data.claims); setLoading(false) })
-        .catch(() => setLoading(false))
+        .catch(err => { if (!axios.isCancel(err)) setLoading(false) })
     }
-    fetchClaims()                      // Fetch immediately on page load
-    const interval = setInterval(fetchClaims, 10000) // Then every 10s
-    return () => clearInterval(interval)  // Cleanup when page unmounts
+    fetchClaims()                                        // Fetch immediately
+    const interval = setInterval(fetchClaims, 30000)     // Then every 30s
+    return () => { clearInterval(interval); controller.abort() }
   }, [])
 
   // Count claims by status for the summary row

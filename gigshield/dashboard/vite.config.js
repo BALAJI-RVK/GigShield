@@ -13,10 +13,18 @@ export default defineConfig({
     port: 5173,
     host: '0.0.0.0',   // Allow external access (judge's phone via WiFi hotspot)
     proxy: {
+      // REST API calls
       '/api': {
         target: 'http://localhost:4000',
         changeOrigin: true,
+      },
+      // WebSocket (Socket.io) — proxied so phone only needs port 5173
+      '/socket.io': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+        ws: true          // <-- this is the key: enables WebSocket proxy
       }
     }
   }
 })
+

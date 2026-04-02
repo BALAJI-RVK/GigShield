@@ -9,10 +9,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { io } from 'socket.io-client'
 
-// Connect to the backend WebSocket server
-const socket = io('http://localhost:4000', {
-  reconnectionDelay: 3000,   // Retry every 3 seconds if disconnected
-  reconnectionAttempts: 20
+// Connect via Vite's WebSocket proxy (same origin = port 5173)
+// Vite proxies /socket.io → localhost:4000 — works on laptop AND judge's phone
+const BACKEND_URL = `http://${window.location.hostname}:5173`
+const socket = io(BACKEND_URL, {
+  path: '/socket.io',
+  reconnectionDelay: 1000,   // Retry every 1s
+  reconnectionAttempts: 10,  // Max 10 retries — stops the 60s hang
+  timeout: 5000
 })
 
 // ── ZONE DATA (static config for the 3 demo cities) ──────

@@ -1,43 +1,57 @@
 // SimulatePage.jsx — The demo control panel
-// This page lets you trigger a disruption simulation
-// directly from the dashboard without needing Thunder Client.
-// It calls POST /api/simulate-disruption and shows the result.
+// Fetches LIVE workers from the database so newly registered workers
+// (like the judge) appear in the dropdown immediately.
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { workers } from '../data/mockWorkers'
 
 export default function SimulatePage() {
-  // Which worker is selected in the dropdown
-  const [selectedWorker, setSelectedWorker] = useState(workers[0])
+  // Live workers loaded from DB
+  const [workers,       setWorkers]       = useState([])
+  const [loadingWorkers, setLoadingWorkers] = useState(true)
+  const [selectedWorker, setSelectedWorker] = useState(null)
 
-  // Simulation parameters (these match the API body)
-  const [rainfall,      setRainfall]      = useState(42)
-  const [workerStatus,  setWorkerStatus]  = useState('online')
-  const [onlineMinutes, setOnlineMinutes] = useState(60)
-  const [completions,   setCompletions]   = useState(0)
-  const [hoursLost,     setHoursLost]     = useState(2)
+  // Simulation parameters
+  const [rainfall,       setRainfall]      = useState(42)
+  const [workerStatus,   setWorkerStatus]  = useState('online')
+  const [onlineMinutes,  setOnlineMinutes] = useState(60)
+  const [completions,    setCompletions]   = useState(0)
+  const [hoursLost,      setHoursLost]     = useState(2)
 
-  // The result JSON from the API
-  const [result,   setResult]   = useState(null)
-  const [loading,  setLoading]  = useState(false)
-  const [error,    setError]    = useState(null)
+  // Result state
+  const [result,  setResult]  = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState(null)
 
-  // Called when the user presses the "Simulate" button
+  // ── Fetch live workers from DB on mount ──────────────
+  useEffect(() => {
+    axios.get('/api/workers')
+      .then(res => {
+        const list = res.data.workers || []
+        setWorkers(list)
+        if (list.length > 0) setSelectedWorker(list[0])
+        setLoadingWorkers(false)
+      })
+      .catch(err => {
+        console.error('Failed to load workers:', err)
+        setLoadingWorkers(false)
+      })
+  }, [])
+
   async function handleSimulate() {
+    if (!selectedWorker) return
     setLoading(true)
     setResult(null)
     setError(null)
-
     try {
       const res = await axios.post('/api/simulate-disruption', {
-        workerHash:           selectedWorker.hash,
-        zone:                 selectedWorker.zone,
-        rainfall_mm_hr:       Number(rainfall),
-        workerStatus:         workerStatus,
-        onlineMinutes:        Number(onlineMinutes),
-        completions_last_hour: Number(completions),
-        hoursLost:            Number(hoursLost)
+        workerHash:             selectedWorker.workerHash,
+        zone:                   selectedWorker.zone,
+        rainfall_mm_hr:         Number(rainfall),
+        workerStatus:           workerStatus,
+        onlineMinutes:          Number(onlineMinutes),
+        completions_last_hour:  Number(completions),
+        hoursLost:              Number(hoursLost)
       })
       setResult(res.data)
     } catch (err) {
@@ -47,8 +61,13 @@ export default function SimulatePage() {
     }
   }
 
-  // Determine the outcome color from the result
   const approved = result?.simulation?.gateDecision?.payoutStatus === 'approved'
+
+  // ── Display label for each worker ────────────────────
+  function workerLabel(w) {
+    const name = w.name && w.name !== 'Unknown Partner' ? w.name : `${w.workerHash.substring(0, 8)}...`
+    return `${name} — ${w.city} (zone ${w.zone})`
+  }
 
   return (
     <div>
@@ -63,25 +82,57 @@ export default function SimulatePage() {
         <div className="table-card" style={{ padding: 24 }}>
           <div style={{ fontWeight: 600, marginBottom: 20 }}>Simulation Parameters</div>
 
-          {/* Worker selector */}
-          <label style={labelStyle}>Select Worker</label>
-          <select
-            style={inputStyle}
-            onChange={e => setSelectedWorker(workers[e.target.value])}
-          >
-            {workers.map((w, i) => (
-              <option key={i} value={i}>{w.name} — {w.city} (zone {w.zone})</option>
-            ))}
-          </select>
+          {/* Live Worker selector */}
+          <label style={labelStyle}>
+            Select Worker
+            {loadingWorkers && (
+              <span style={{ color: '#64748b', fontWeight: 400, marginLeft: 8 }}>
+                Loading from DB...
+              </span>
+            )}
+          </label>
+
+          {loadingWorkers ? (
+            <div style={{ ...inputStyle, color: '#64748b', padding: '12px' }}>
+              ⏳ Fetching workers...
+            </div>
+          ) : workers.length === 0 ? (
+            <div style={{ ...inputStyle, color: '#ef4444', padding: '12px' }}>
+              ❌ No workers in DB. Register one first.
+            </div>
+          ) : (
+            <select
+              style={inputStyle}
+              onChange={e => setSelectedWorker(workers[Number(e.target.value)])}
+            >
+              {workers.map((w, i) => (
+                <option key={w.id || i} value={i}>
+                  {workerLabel(w)}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* Selected worker info chip */}
+          {selectedWorker && (
+            <div style={{
+              marginTop: 8, padding: '8px 12px', borderRadius: 6,
+              background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)',
+              fontSize: 12, color: '#f59e0b', display: 'flex', gap: 12
+            }}>
+              <span>🔑 {selectedWorker.workerHash.substring(0, 16)}...</span>
+              <span>📍 {selectedWorker.city}</span>
+              <span>📅 {selectedWorker.isActive ? '🟢 Active' : '🔴 Inactive'}</span>
+            </div>
+          )}
 
           {/* Rainfall slider */}
           <label style={labelStyle}>
-            Rainfall: <strong style={{ color: rainfall >= 35 ? '#ef4444' : '#10b981' }}>
+            Rainfall:{' '}
+            <strong style={{ color: rainfall >= 35 ? '#ef4444' : '#10b981' }}>
               {rainfall}mm/hr
             </strong>
-            {rainfall >= 35
-              ? ' ✅ Triggers Gate 1'
-              : ' ❌ Below 35mm threshold'}
+            {rainfall >= 35 ? ' ✅ Triggers Gate 1' : ' ❌ Below 35mm threshold'}
           </label>
           <input type="range" min="0" max="80" value={rainfall}
             onChange={e => setRainfall(e.target.value)} style={{ width: '100%' }} />
@@ -96,27 +147,56 @@ export default function SimulatePage() {
           </select>
 
           {/* Online minutes */}
-          <label style={labelStyle}>Online Minutes During Disruption: <strong>{onlineMinutes}</strong></label>
+          <label style={labelStyle}>
+            Online Minutes During Disruption: <strong>{onlineMinutes}</strong>
+          </label>
           <input type="range" min="0" max="120" value={onlineMinutes}
             onChange={e => setOnlineMinutes(e.target.value)} style={{ width: '100%' }} />
 
           {/* Completions */}
-          <label style={labelStyle}>Completions Last Hour: <strong>{completions}</strong></label>
+          <label style={labelStyle}>
+            Completions Last Hour: <strong>{completions}</strong>
+          </label>
           <input type="range" min="0" max="6" value={completions}
             onChange={e => setCompletions(e.target.value)} style={{ width: '100%' }} />
 
           {/* Hours lost */}
-          <label style={labelStyle}>Hours Lost: <strong>{hoursLost}h</strong></label>
+          <label style={labelStyle}>
+            Hours Lost: <strong>{hoursLost}h</strong>
+          </label>
           <input type="range" min="1" max="8" value={hoursLost}
             onChange={e => setHoursLost(e.target.value)} style={{ width: '100%' }} />
 
-          {/* Submit button */}
+          {/* Submit */}
           <button
             onClick={handleSimulate}
-            disabled={loading}
-            style={btnStyle}
+            disabled={loading || loadingWorkers || !selectedWorker}
+            style={{
+              ...btnStyle,
+              opacity: (loading || loadingWorkers || !selectedWorker) ? 0.5 : 1
+            }}
           >
             {loading ? 'Running Simulation...' : '⚡ Run Simulation'}
+          </button>
+
+          {/* Refresh workers button */}
+          <button
+            onClick={() => {
+              setLoadingWorkers(true)
+              axios.get('/api/workers').then(res => {
+                const list = res.data.workers || []
+                setWorkers(list)
+                if (list.length > 0 && !selectedWorker) setSelectedWorker(list[0])
+                setLoadingWorkers(false)
+              }).catch(() => setLoadingWorkers(false))
+            }}
+            style={{
+              marginTop: 8, width: '100%', padding: '8px',
+              background: 'transparent', border: '1px solid #2d3147',
+              borderRadius: 8, color: '#64748b', fontSize: 12, cursor: 'pointer'
+            }}
+          >
+            🔄 Refresh Worker List
           </button>
         </div>
 
@@ -129,23 +209,18 @@ export default function SimulatePage() {
           )}
 
           {error && (
-            <div style={{ color: '#ef4444', padding: 16, background: 'rgba(239,68,68,.1)',
-              borderRadius: 8 }}>
+            <div style={{ color: '#ef4444', padding: 16,
+              background: 'rgba(239,68,68,.1)', borderRadius: 8 }}>
               ❌ Error: {error}
             </div>
           )}
 
           {result && (
             <div>
-              {/* Big outcome banner */}
+              {/* Outcome banner */}
               <div style={{
-                padding: '20px',
-                borderRadius: 8,
-                textAlign: 'center',
-                marginBottom: 20,
-                background: approved
-                  ? 'rgba(16,185,129,.15)'
-                  : 'rgba(239,68,68,.15)',
+                padding: '20px', borderRadius: 8, textAlign: 'center', marginBottom: 20,
+                background: approved ? 'rgba(16,185,129,.15)' : 'rgba(239,68,68,.15)',
               }}>
                 <div style={{ fontSize: 32 }}>{approved ? '✅' : '❌'}</div>
                 <div style={{
@@ -192,12 +267,10 @@ export default function SimulatePage() {
   )
 }
 
-// Small helper component to render a pass/fail row in the results
 function ResultRow({ label, pass, reason }) {
   return (
     <div style={{
-      padding: '12px 16px',
-      borderRadius: 8,
+      padding: '12px 16px', borderRadius: 8,
       background: pass ? 'rgba(16,185,129,.08)' : 'rgba(239,68,68,.08)',
       border: `1px solid ${pass ? 'rgba(16,185,129,.2)' : 'rgba(239,68,68,.2)'}`
     }}>
@@ -210,16 +283,15 @@ function ResultRow({ label, pass, reason }) {
   )
 }
 
-// Shared inline styles to keep the form inputs consistent
-const labelStyle = { display: 'block', color: '#94a3b8', fontSize: 12,
-  marginBottom: 6, marginTop: 16 }
-
+const labelStyle = {
+  display: 'block', color: '#94a3b8', fontSize: 12,
+  marginBottom: 6, marginTop: 16
+}
 const inputStyle = {
   width: '100%', padding: '8px 12px', background: '#0f1117',
   border: '1px solid #2d3147', borderRadius: 6, color: '#f1f5f9',
-  fontSize: 13, outline: 'none'
+  fontSize: 13, outline: 'none', boxSizing: 'border-box'
 }
-
 const btnStyle = {
   marginTop: 24, width: '100%', padding: '12px',
   background: '#f59e0b', border: 'none', borderRadius: 8,
